@@ -2,12 +2,14 @@ import sys
 from PyQt6.QtCore import QThread
 from PyQt6.QtWidgets import QApplication, QMainWindow, QPlainTextEdit, QPushButton
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 WIN_SIZE = (800, 1200)
 INP_TEXT_HEIGHT = int(WIN_SIZE[1] / 2 - 20)
 BUTTON_HEIGHT = 40
 BUTTON_WIDTH = int(WIN_SIZE[0] / 2 - 20)
 OUT_TEXT_HEIGHT = WIN_SIZE[1] - INP_TEXT_HEIGHT - BUTTON_HEIGHT - 40
 MODEL = "facebook/bart-large-cnn"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 class QSummarizer(QThread):
     def __init__(self, tokenizer, summarizer, text):
@@ -17,15 +19,15 @@ class QSummarizer(QThread):
         self.in_text = text
     
     def run(self):
-        inputs = self.tokenizer(self.in_text, return_tensors="pt").to("cuda")
-        summary_ids = self.summarizer.generate(inputs["input_ids"], min_length=200, max_length=1000).to("cuda")
+        inputs = self.tokenizer(self.in_text, return_tensors="pt").to(DEVICE)
+        summary_ids = self.summarizer.generate(inputs["input_ids"], min_length=200, max_length=1000).to(DEVICE)
         self.out_text = self.tokenizer.batch_decode(summary_ids, skip_special_tokens=True)[0]
 
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL)
-        self.summarizer = AutoModelForSeq2SeqLM.from_pretrained(MODEL).to("cuda")
+        self.summarizer = AutoModelForSeq2SeqLM.from_pretrained(MODEL).to(DEVICE)
 
         self.setFixedSize(*WIN_SIZE)
         self.setWindowTitle("T&C Reader")
